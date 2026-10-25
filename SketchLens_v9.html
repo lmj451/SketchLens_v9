@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SketchLens — 의류 스케치 진단 (개발용)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/sketchlens.css">
+</head>
+<!-- data-mode="dev": 입력·출력 탭과 요청·응답 JSON을 함께 보여줌 -->
+<body data-mode="dev">
+
+<nav class="nav">
+  <div class="nav-in">
+    <div class="brand"><span class="mk"></span>SketchLens</div>
+    <div class="nav-links" id="navLinks">
+      <a href="#diagnose" data-view="diagnose" class="on">진단</a>
+      <a href="#history" data-view="history">내 기록</a>
+      <a href="#guide" data-view="guide">기준 가이드</a>
+    </div>
+    <div class="nav-right">
+      <span class="tag">개발용 · 입력·출력 확인</span>
+      <div class="acct" id="acct"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════ 진단 화면 ══════════════ -->
+<div class="page" id="view-diagnose">
+  <div class="page-head">
+    <h1>스케치 진단</h1>
+    <p>의류 디자인 스케치를 올리면 먼저 어떤 옷의 스케치인지 분류한 뒤, 선 품질·비율·실루엣·균형 4개 항목으로 나눠 무엇을 어떻게 고치면 좋을지 알려드립니다. 점수는 매기지 않고, 보완이 필요한 항목부터 고칠 점 · 이유 · 고치는 방법을 보여드립니다. 로그인하면 진단이 기록되고, 수정본을 올려 이전 고칠 점이 해결됐는지 확인할 수 있습니다.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- ══ 왼쪽: 입력 ══ -->
+    <div class="card">
+      <div class="card-head">
+        <h2>스케치 이미지</h2>
+        <span class="meta" id="fileName">파일 없음</span>
+      </div>
+
+      <!-- 수정본 재진단 모드일 때만 보임 -->
+      <div class="revise hidden" id="reviseBar"></div>
+
+      <div class="toolbar">
+        <button class="btn primary" id="t-open">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 10V2.5M4 5.5L7 2.5l3 3M2 9.5v1.5a1 1 0 001 1h8a1 1 0 001-1V9.5"/></svg>
+          파일 선택
+        </button>
+        <input type="file" id="file" accept="image/png,image/jpeg" class="hidden">
+
+        <div class="seg">
+          <button id="z-out" title="축소" aria-label="축소">
+            <svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 7h7"/></svg>
+          </button>
+          <span class="val" id="zoomVal">—</span>
+          <button id="z-in" title="확대" aria-label="확대">
+            <svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 3.5v7M3.5 7h7"/></svg>
+          </button>
+        </div>
+        <button class="btn" id="z-fit">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 5V2.5h3M12 5V2.5H9M2 9v2.5h3M12 9v2.5H9"/></svg>
+          맞춤
+        </button>
+        <button class="btn" id="z-100">100%</button>
+
+        <div class="spacer"></div>
+
+        <button class="btn quiet" id="t-s1">예시 · 티셔츠</button>
+        <button class="btn quiet" id="t-s3">예시 · 티셔츠 수정본</button>
+        <button class="btn quiet" id="t-s2">예시 · 원피스</button>
+      </div>
+
+      <div class="card-body">
+        <div class="viewport" id="viewport">
+          <div class="layer" id="layer">
+            <canvas id="img" width="10" height="10"></canvas>
+          </div>
+          <div class="drop" id="drop">
+            <div class="ring">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15l3.5-4 2.5 3 2.5-3.5L19 15"/><circle cx="9" cy="9" r="1.3"/>
+              </svg>
+            </div>
+            <div>
+              <b>의류 스케치 이미지를 올려주세요</b>
+              <p>이 영역에 파일을 끌어다 놓거나 위의 파일 선택을 누르세요.</p>
+            </div>
+            <span class="fmt">스캔 · 사진 촬영 · 태블릿 내보내기 — PNG, JPG</span>
+          </div>
+        </div>
+
+        <div class="vfoot">
+          <span id="sizeInfo"></span>
+          <div class="spacer"></div>
+          <span>휠로 확대·축소 · 끌어서 이동</span>
+        </div>
+
+        <div class="field">
+          <label for="worry">어디가 아쉬운지 적어보세요 <span class="opt">(선택)</span></label>
+          <textarea id="worry" placeholder="예: 소매 비율이 어색한데 뭐가 문제인지 모르겠다"></textarea>
+          <div class="chips-head">
+            <span>중점으로 볼 항목</span>
+            <span class="sub">고르지 않으면 4개 항목을 모두 같은 비중으로 봅니다</span>
+          </div>
+          <div class="chips" id="chips"></div>
+          <p class="focus-note hidden" id="focusNote" aria-live="polite"></p>
+        </div>
+
+        <button class="run" id="run" disabled>진단하기</button>
+      </div>
+    </div>
+
+    <!-- ══ 오른쪽: 결과 ══ -->
+    <div class="card">
+      <div class="card-head">
+        <h2>진단 결과</h2>
+        <!-- TODO(백엔드 연동 지점): 서버 연동 후 "로컬 데모 응답" 문구 삭제 또는 변경 -->
+        <span class="meta">로컬 데모 응답</span>
+      </div>
+      <div class="tabs" id="tabs">
+        <button class="on" data-p="p1">진단</button>
+        <button data-p="p2">입력·출력</button>
+        <button data-p="p3">이 작품의 버전</button>
+      </div>
+      <div class="card-body">
+        <div class="pane on" id="p1">
+          <div class="empty-r">
+            <b>아직 진단한 스케치가 없습니다</b>
+            <p>왼쪽에서 이미지를 올리고 진단하기를 누르면 결과가 여기에 표시됩니다.</p>
+          </div>
+        </div>
+        <div class="pane" id="p2">
+          <div class="empty-r">
+            <b>진단을 실행하면 요청과 응답이 표시됩니다</b>
+            <p>1단계 분류, 2단계 LLM 진단, 서버 정리 · 기록 저장에서 각각 어떤 JSON이 오가는지 확인하는 탭입니다.</p>
+          </div>
+        </div>
+        <div class="pane" id="p3">
+          <div class="empty-r">
+            <b>아직 버전이 없습니다</b>
+            <p>로그인한 상태에서 진단하면 작품으로 저장되고, 수정본을 올릴 때마다 버전이 쌓입니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ 내 기록 (작품 목록 / 작품 상세) ══════════════ -->
+<div class="page hidden" id="view-history"></div>
+
+<!-- ══════════════ 전후 비교 ══════════════ -->
+<div class="page hidden" id="view-compare"></div>
+
+<!-- ══════════════ 로그인 · 회원가입 ══════════════ -->
+<div class="page hidden" id="view-login"></div>
+
+<!-- ══════════════ 기준 가이드 화면 ══════════════ -->
+<div class="page hidden" id="view-guide">
+  <div class="page-head">
+    <h1>진단 기준 가이드</h1>
+    <p>모든 스케치는 같은 진단 기준표로 봅니다. 점수는 매기지 않고, 4개 항목마다 상태와 고칠 점을 알려드립니다.</p>
+  </div>
+  <div class="guide">
+    <section class="card g-items">
+      <div class="card-head"><h2>진단 항목 · 점검 포인트</h2><span class="meta">criteria v2_draft</span></div>
+      <div class="card-body" id="guideItems"></div>
+    </section>
+    <div class="g-side">
+      <section class="card">
+        <div class="card-head"><h2>항목 상태</h2></div>
+        <div class="card-body">
+          <ul class="scale">
+            <li><span class="rt r0">보완 필요</span>고칠 점이 하나 이상 있음</li>
+            <li><span class="rt r2">양호</span>점검 포인트에서 뚜렷한 문제가 보이지 않음</li>
+            <li><span class="rt rx">판단 불가</span>잘림·가림·해상도 부족 등으로 점검할 수 없음</li>
+          </ul>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>고칠 점 구성</h2></div>
+        <div class="card-body">
+          <p class="formula">점검 포인트 · 부위 · 문제 · 이유 · 고치는 방법</p>
+          <p class="g-note">먼저 고치면 좋은 것에는 "중요" 표시가 붙고, 고민 글에 해당하는 항목의 고칠 점이 앞에 옵니다.</p>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>진단 과정</h2></div>
+        <div class="card-body">
+          <ol class="steps">
+            <li><b>분류</b>MobileNetV3가 어떤 옷의 스케치인지 분류합니다. 의류가 아니면 "기타"로 분류됩니다.</li>
+            <li><b>진단</b>LLM이 진단 기준표의 4개 항목마다 상태와 고칠 점을 씁니다.</li>
+            <li><b>정리</b>서버가 고칠 점에 우선순위를 붙이고, 로그인한 경우 작품의 새 버전으로 저장합니다.</li>
+            <li><b>비교</b>수정본이면 LLM이 항목 상태 변화와 이전 고칠 점의 해결 여부를 정리합니다.</li>
+          </ol>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>패션 스케치 확인</h2></div>
+        <div class="card-body">
+          <ul class="flow">
+            <li><b>통과</b>의류 카테고리로 분류되고 확신도 0.8 이상</li>
+            <li><b>다시 확인</b>의류 카테고리지만 확신도 0.4~0.8 (화질 저하 등)</li>
+            <li><b>거절</b>"기타"로 분류되었거나 확신도 0.4 미만</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- TODO(백엔드 연동 지점): 아래 프로토타입 안내는 데모용 설명. 서버 연동 후 삭제하거나 실제 서비스 안내로 교체 -->
+<div class="foot">
+  <p><b>프로토타입 안내.</b>
+  실제 서비스에서는 1단계에서 학습된 MobileNetV3가 패션 스케치 여부와 의류 카테고리를 분류하고, 2단계에서 LLM이 진단 기준표의 4개 항목마다 상태와 고칠 점 · 고치는 방법을 작성합니다. 점수는 매기지 않으며, 우선순위 정리와 기록 저장은 서버가 맡습니다.
+  지금은 서버 연동 전이라 브라우저가 이미지의 선을 간단히 계산해 같은 형식의 데모 응답을 만들고, 로그인과 기록은 이 브라우저에만 임시로 저장합니다.
+  진단 내용보다 <b>화면 흐름과 입력·출력 형식</b>을 확인하는 용도입니다.</p>
+</div>
+
+<script src="js/sketchlens.js"></script>
+</body>
+</html>
